@@ -1,4 +1,4 @@
-import { request, Request, Response } from "express";
+import { Request, Response } from "express";
 import { User } from "../../model/User";
 import { sendMail } from "../../services/mailService";
 import { userService } from "../user/userService";
@@ -12,12 +12,9 @@ import { authService } from "./authService";
 const sendTokenForLogin = async (req: Request, res: Response) => {
     const user: User = req.body;
 
-    console.log("email arrivata ", user.email)
     // Verifico se utente esiste già, altrimenti lo creo
     const userExist_res = await userService.getByEmail(user.email);
     const userExist = userExist_res[0];
-
-    console.log(userExist);
 
     if(!userExist) {
         console.log("non esiste lo creo")
@@ -29,13 +26,15 @@ const sendTokenForLogin = async (req: Request, res: Response) => {
 
     // Genero il nuovo token per la login
     const token = await authService.generateNewToken(user.id);
-    console.log("token generato è ", token)
 
     // Disabilito tutti i vecchi token associati a questo utente 
-    await authService.disableOldToken(user.id, token);
+    // Per ora no altrimenti perde le connessione nei vari device 
+    //await authService.disableOldToken(user.id, token);
 
     // Qui invio la mail all'utente
-    sendMail("", user.email, "test invio mail", "questo è un test", "questo è un test", "");
+    const emailObject = "";
+    const emailSubject = `Ciao, per procedere con la login tramite magic link clicca qui : ${token}`;
+    sendMail("", user.email, emailObject, emailSubject, emailSubject, "");
 
     res.status(200).send(true);
 }
@@ -45,10 +44,30 @@ const sendTokenForLogin = async (req: Request, res: Response) => {
  * @param req 
  * @param res 
  */
-const login = async (req: Request, res: Response) => {
+const getLoggedUserByToken = async (req: Request, res: Response) => {
+    const { token } = req.body;
 
+    // Controllo che il token sia un guid valido
+    const regex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i
+    const checkUuid = regex.test(token);
+
+    if(!checkUuid) {
+        res.status(400).send("Not valid token");
+        return;
+    }
+
+    // Recupero utente con il token in ingresso
+    const users: Array<User> = await userService.getUserByToken(token);
+    
+    if(!users || users.length === 0) {
+        res.status(401).send("Not found");
+    } else {
+        const user = users[0];
+        res.status(200).json(user);
+    }
 }
 
 export const authController = {
-    sendTokenForLogin
+    sendTokenForLogin,
+    getLoggedUserByToken
 }
