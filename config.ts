@@ -8,3 +8,5 @@ export const dbConfig = {
     dbPassword: process.env.DB_PASSWORD,
     dbPort: process.env.DB_PORT
 }
+
+export const clientRedirect = process.env.CLIENT_REDIRECT_LOGIN;

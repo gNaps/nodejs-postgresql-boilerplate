@@ -3,6 +3,7 @@ import { User } from "../../model/User";
 import { sendMail } from "../../services/mailService";
 import { userService } from "../user/userService";
 import { authService } from "./authService";
+import { clientRedirect } from "../../config"
 
 /**
  * Stacca il token da inviare via mail all'utente per effettuare la login
@@ -17,7 +18,6 @@ const sendTokenForLogin = async (req: Request, res: Response) => {
     const userExist = userExist_res[0];
 
     if(!userExist) {
-        console.log("non esiste lo creo")
         const newId = await userService.createUser(user);
         user.id = newId;
     } else {
@@ -33,7 +33,7 @@ const sendTokenForLogin = async (req: Request, res: Response) => {
 
     // Qui invio la mail all'utente
     const emailObject = "";
-    const emailSubject = `Ciao, per procedere con la login tramite magic link clicca qui : ${token}`;
+    const emailSubject = `Ciao, per eseguire la login utilizza il magic link : ${clientRedirect}?token=${token}`;
     sendMail("", user.email, emailObject, emailSubject, emailSubject, "");
 
     res.status(200).send(true);
@@ -67,7 +67,33 @@ const getLoggedUserByToken = async (req: Request, res: Response) => {
     }
 }
 
+/**
+ * Alla logout disabilito il token di riferimento
+ * @param req 
+ * @param res 
+ */
+ const logout = async (req: Request, res: Response) => {
+    const { token } = req.body;
+
+    // Controllo che il token sia un guid valido
+    const regex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i
+    const checkUuid = regex.test(token);
+
+    if(!checkUuid) {
+        res.status(400).send("Not valid token");
+        return;
+    }
+
+    const result = await authService.logout(token);
+    if(result) {
+        res.status(200).send("Logout succeded");
+    } else {
+        res.status(400).send("Error");
+    }
+}
+
 export const authController = {
     sendTokenForLogin,
-    getLoggedUserByToken
+    getLoggedUserByToken,
+    logout
 }
